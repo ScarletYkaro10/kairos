@@ -1,4 +1,4 @@
-# OptimaTask: Assistente Pessoal de Produtividade com IA
+# Kairós: Assistente Pessoal de Produtividade com IA
 
 ![Project Banner](https://i.imgur.com/your-banner-image.png) **Status do Projeto: Em fase de Concepção**
 
