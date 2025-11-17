@@ -4,7 +4,6 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-# Ajusta PYTHONPATH para permitir imports do pacote src em qualquer contexto
 root_dir = Path(__file__).resolve().parent
 src_dir = root_dir / "src"
 

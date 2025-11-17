@@ -7,11 +7,6 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, EmailStr, validator, ConfigDict
 
-
-# ==================================
-#         Schemas de Usuario
-# ==================================
-
 class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8)
@@ -23,10 +18,6 @@ class UserPublic(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-# ==================================
-#         Schemas de Token (Login)
-# ==================================
-
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -35,10 +26,6 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     email: str | None = None
 
-
-# ==================================
-#         Schemas de Tarefas
-# ==================================
 
 class TaskPriority(str, Enum):
     low = "low"
