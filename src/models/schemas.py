@@ -5,8 +5,40 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, EmailStr, validator, ConfigDict
 
+
+# ==================================
+#         Schemas de Usuario
+# ==================================
+
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=8)
+
+
+class UserPublic(BaseModel):
+    id: str
+    email: EmailStr
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ==================================
+#         Schemas de Token (Login)
+# ==================================
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+class TokenData(BaseModel):
+    email: str | None = None
+
+
+# ==================================
+#         Schemas de Tarefas
+# ==================================
 
 class TaskPriority(str, Enum):
     low = "low"
@@ -54,4 +86,13 @@ class TaskPublic(TaskBase):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
-__all__ = ["TaskPriority", "TaskStatus", "TaskCreate", "TaskPublic"]
+__all__ = [
+    "UserCreate",
+    "UserPublic",
+    "Token",
+    "TokenData",
+    "TaskPriority",
+    "TaskStatus",
+    "TaskCreate",
+    "TaskPublic",
+]

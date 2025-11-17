@@ -2,8 +2,6 @@
 
 # Kairos
 
-[![CI](https://github.com/USERNAME/REPO/actions/workflows/main.yml/badge.svg)](https://github.com/USERNAME/REPO/actions/workflows/main.yml)
-
 _"O momento certo" para entregar uma base solida antes de adicionar IA._
 
 </div>
@@ -17,7 +15,7 @@ Kairos e o sistema de gestao de tarefas e otimizacao de agenda que estamos const
 
 ## Status do MVP 50
 
-- Seguranca: endpoints protegidos via header `Authorization: Bearer <token>` (substituir por JWT real do modulo de seguranca).
+- Seguranca: autenticacao JWT implementada (`/auth/register`, `/auth/login`) e endpoints de tarefas protegidos via header `Authorization: Bearer <token>`.
 - CRUD de Tarefas: criacao e listagem com validacoes, pronto para trocar para banco real.
 - DevOps: pipeline GitHub Actions (`build` + `test-tasks`) garantindo testes verdes.
 - IA Mock: `src/services/ia_service.py` reordena tarefas por prioridade e prazo, pronta para ser substituida pelo modelo real.
@@ -25,10 +23,13 @@ Kairos e o sistema de gestao de tarefas e otimizacao de agenda que estamos const
 
 ## Estrutura
 
-- `src/models/schemas.py` - Schemas Pydantic de tarefas.
+- `src/models/schemas.py` - Schemas Pydantic de usuarios, tokens e tarefas.
 - `src/services/task_service.py` - CRUD em memoria e ponto unico para evoluir para DB.
+- `src/services/auth_service.py` - Servico de autenticacao com JWT e hash de senhas.
 - `src/services/ia_service.py` - Regra deterministica (mock) para ordenacao.
 - `src/api/task_router.py` - Rotas `/tasks` e `/optimize-schedule`.
+- `src/api/auth_router.py` - Rotas `/auth/register` e `/auth/login`.
+- `src/core/security.py` - Funcoes de hash de senha e JWT.
 - `src/main.py` - Factory do FastAPI e registro das rotas.
 
 ## Como Rodar Localmente
@@ -39,8 +40,6 @@ python -m venv .venv
 pip install -r requirements.txt
 uvicorn src.main:app --reload
 ```
-
-Requests precisam enviar o header `Authorization: Bearer <uuid>` ate que o modulo de autenticacao esteja integrado.
 
 ## Testes e Pipeline
 
@@ -53,11 +52,9 @@ O workflow `.github/workflows/main.yml` executa:
 1. `build`: instala dependencias.
 2. `test-tasks`: roda `pytest tests/test_tasks.py`.
 
-Atualize o badge com o nome real do repositorio quando o GitHub estiver configurado.
-
 ## Roadmap pos Qualificacao
 
-1. Integrar autenticacao completa (registro, login, JWT) com os endpoints existentes.
+1. Integrar autenticacao completa com os endpoints de tarefas (usar JWT real ao inves de UUID mock).
 2. Treinar e publicar o modelo de IA (Scikit learn) usado pelo `/optimize-schedule`.
 3. Expandir CRUD (projetos, tarefas compartilhadas) e observabilidade.
 
