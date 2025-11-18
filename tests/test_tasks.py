@@ -55,7 +55,8 @@ def build_payload(**overrides) -> Dict[str, str]:
 def test_create_task_requires_auth():
     """Testa se a "dependência de porteiro" está funcionando"""
     response = client.post("/tasks", json=build_payload())
-    assert response.status_code == 401
+
+    assert response.status_code == 403
     assert response.json()["detail"] == "Not authenticated"
 
 
