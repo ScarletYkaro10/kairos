@@ -1,32 +1,28 @@
 from __future__ import annotations
-
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from uuid import UUID
-
 from src.models.schemas import TaskCreate, TaskPublic, TaskStatus
 
 
 class TaskRepository:
-    """Simple in-memory storage to unblock Wesley's Day 2 scope.
-
-    The implementation is intentionally straightforward so it can later
-    evolve into a real database without touching the service API.
-    """
+    """Simple in-memory storage."""
 
     def __init__(self) -> None:
         self._items: Dict[UUID, TaskPublic] = {}
 
     def create(self, data: TaskCreate, owner_id: Optional[UUID] = None) -> TaskPublic:
-        task = TaskPublic(**data.dict(), owner_id=owner_id)
+        owner_id_str = str(owner_id) if owner_id else None
+        task = TaskPublic(**data.model_dump(), owner_id=owner_id_str)
         self._items[task.id] = task
         return deepcopy(task)
 
     def list(self, owner_id: Optional[UUID] = None) -> List[TaskPublic]:
         tasks = self._items.values()
         if owner_id is not None:
-            tasks = [task for task in tasks if task.owner_id == owner_id]
+            owner_id_str = str(owner_id)
+            tasks = [task for task in tasks if str(task.owner_id) == owner_id_str]
         return [deepcopy(task) for task in tasks]
 
     def get(self, task_id: UUID) -> Optional[TaskPublic]:
@@ -44,11 +40,11 @@ class TaskRepository:
         if task is None:
             return None
 
-        updated_payload = task.copy(update=data.dict(exclude_unset=True))
+        updated_payload = task.copy(update=data.model_dump(exclude_unset=True))
         if status:
             updated_payload.status = status
-        updated_payload.updated_at = datetime.utcnow()
-        self._items[task_id] = TaskPublic(**updated_payload.dict())
+        updated_payload.updated_at = datetime.now(timezone.utc)
+        self._items[task_id] = TaskPublic(**updated_payload.model_dump())
         return deepcopy(self._items[task_id])
 
     def delete(self, task_id: UUID) -> bool:
@@ -75,8 +71,4 @@ def delete_task(task_id: UUID) -> bool:
 
 
 def reset_repository() -> None:
-    """Utility hook used exclusively in tests."""
-
     task_repository._items.clear()
-
-
