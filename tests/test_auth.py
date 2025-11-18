@@ -1,9 +1,10 @@
 import pytest
 from fastapi.testclient import TestClient
-from src.main import app 
-from src.services.auth_service import fake_users_db  
+from src.main import app
+from src.services.auth_service import fake_users_db
 
 client = TestClient(app)
+
 
 @pytest.fixture(autouse=True)
 def clean_fake_db():
@@ -17,15 +18,16 @@ def test_register_user_success():
     """
     response = client.post(
         "/auth/register",
-        json={"email": "test@example.com", "password": "senhaforte123"}
+        json={"email": "test@example.com", "password": "senhaforte123"},
     )
 
     assert response.status_code == 201
-    
+
     data = response.json()
     assert data["email"] == "test@example.com"
     assert "id" in data
-    assert "password" not in data  
+    assert "password" not in data
+
 
 def test_register_user_already_exists():
     """
@@ -34,34 +36,33 @@ def test_register_user_already_exists():
 
     client.post(
         "/auth/register",
-        json={"email": "test@example.com", "password": "senhaforte123"}
+        json={"email": "test@example.com", "password": "senhaforte123"},
     )
-    
+
     response = client.post(
-        "/auth/register",
-        json={"email": "test@example.com", "password": "outrasenha"}
+        "/auth/register", json={"email": "test@example.com", "password": "outrasenha"}
     )
-    
+
     assert response.status_code == 400
     assert response.json()["detail"] == "Email já registrado."
+
 
 def test_register_user_invalid_email():
     """
     Testa se o schema de validação (Pydantic) barra um email inválido (Code 422)
     """
     response = client.post(
-        "/auth/register",
-        json={"email": "email-invalido", "password": "senhaforte123"}
+        "/auth/register", json={"email": "email-invalido", "password": "senhaforte123"}
     )
     assert response.status_code == 422
+
 
 def test_register_user_weak_password():
     """
     Testa se o schema de validação (Pydantic) barra uma senha fraca (Code 422)
     """
     response = client.post(
-        "/auth/register",
-        json={"email": "test@example.com", "password": "123"} 
+        "/auth/register", json={"email": "test@example.com", "password": "123"}
     )
     assert response.status_code == 422
 
@@ -72,18 +73,18 @@ def test_login_success():
     """
     client.post(
         "/auth/register",
-        json={"email": "test@example.com", "password": "senhaforte123"}
+        json={"email": "test@example.com", "password": "senhaforte123"},
     )
-    
+
     response = client.post(
-        "/auth/login",
-        json={"email": "test@example.com", "password": "senhaforte123"}
+        "/auth/login", json={"email": "test@example.com", "password": "senhaforte123"}
     )
-    
+
     assert response.status_code == 200
     data = response.json()
     assert "access_token" in data
     assert data["token_type"] == "bearer"
+
 
 def test_login_wrong_password():
     """
@@ -91,16 +92,16 @@ def test_login_wrong_password():
     """
     client.post(
         "/auth/register",
-        json={"email": "test@example.com", "password": "senhaforte123"}
+        json={"email": "test@example.com", "password": "senhaforte123"},
     )
-    
+
     response = client.post(
-        "/auth/login",
-        json={"email": "test@example.com", "password": "senhaERRADA"}
+        "/auth/login", json={"email": "test@example.com", "password": "senhaERRADA"}
     )
-    
+
     assert response.status_code == 401
     assert response.json()["detail"] == "Email ou senha incorretos"
+
 
 def test_login_user_not_found():
     """
@@ -108,8 +109,8 @@ def test_login_user_not_found():
     """
     response = client.post(
         "/auth/login",
-        json={"email": "ninguem@example.com", "password": "senhaforte123"}
+        json={"email": "ninguem@example.com", "password": "senhaforte123"},
     )
-    
+
     assert response.status_code == 401
     assert response.json()["detail"] == "Email ou senha incorretos"

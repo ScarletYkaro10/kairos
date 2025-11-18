@@ -1,4 +1,5 @@
 """Ponto de entrada principal da aplicacao Kairos."""
+
 from __future__ import annotations
 
 import sys
@@ -18,4 +19,3 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(app, host="0.0.0.0", port=8000)
-

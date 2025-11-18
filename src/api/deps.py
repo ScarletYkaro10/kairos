@@ -1,32 +1,31 @@
-from __future__ import annotations
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer  
+from src.core import security
+from src.models import schemas
+from src.services import auth_service
 
-from uuid import UUID
+security_scheme = HTTPBearer()
 
-from fastapi import Header, HTTPException, status
+def get_current_user_id(token_auth=Depends(security_scheme)) -> str:
+    """
+    Dependência de porteiro (Atualizada para HTTPBearer).
+    1. Pega o token do objeto de autorização.
+    2. Verifica validade.
+    3. Retorna o ID.
+    """
+    token = token_auth.credentials
 
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Token inválido ou expirado",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
-def get_current_user_id(authorization: str | None = Header(default=None)) -> UUID:
-    """Temporary auth dependency until the real JWT service is wired."""
+    token_data = security.verify_token(token, credentials_exception)
 
-    if not authorization:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing Authorization header",
-        )
+    user_in_db = auth_service.fake_users_db.get(token_data.email)
 
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid Authorization header",
-        )
+    if user_in_db is None:
+        raise credentials_exception
 
-    token = authorization.split(" ", 1)[1].strip()
-    try:
-        return UUID(token)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token format"
-        ) from exc
-
-
-__all__ = ["get_current_user_id"]
+    return user_in_db["id"]

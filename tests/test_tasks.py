@@ -1,38 +1,50 @@
-from __future__ import annotations
-
-from datetime import datetime, timedelta
-from typing import Dict
-from uuid import UUID, uuid4
-
 import pytest
 from fastapi.testclient import TestClient
-
-from src.main import create_app
+from datetime import datetime, timedelta, timezone
+from typing import Dict
+from src.main import app
 from src.services import task_service
+from src.services import auth_service
+
+client = TestClient(app)
 
 
 @pytest.fixture(autouse=True)
-def _reset_task_repo():
+def _reset_all_repositories():
+    """Limpa os bancos de dados falsos antes de CADA teste."""
     task_service.reset_repository()
+    auth_service.fake_users_db.clear()
     yield
-    task_service.reset_repository()
 
 
-@pytest.fixture()
-def client() -> TestClient:
-    return TestClient(create_app())
+@pytest.fixture
+def authenticated_headers() -> Dict[str, str]:
+    """
+    Fixture que faz o trabalho do Pilar de Segurança:
+    1. Registra um usuário
+    2. Faz login
+    3. Retorna os headers de autorização com o token REAL.
+    """
+    client.post(
+        "/auth/register",
+        json={"email": "test.task@example.com", "password": "senhaforte123"},
+    )
 
+    response = client.post(
+        "/auth/login",
+        json={"email": "test.task@example.com", "password": "senhaforte123"},
+    )
+    token = response.json()["access_token"]
 
-def auth_headers(user_id: UUID | None = None) -> Dict[str, str]:
-    token = user_id or uuid4()
     return {"Authorization": f"Bearer {token}"}
 
 
 def build_payload(**overrides) -> Dict[str, str]:
+    """Helper para criar payloads de tarefa."""
     base = {
         "title": "Test task",
         "description": "Ensure CRUD works",
-        "due_date": (datetime.utcnow() + timedelta(days=1)).isoformat(),
+        "due_date": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         "priority": "medium",
         "status": "pending",
     }
@@ -40,13 +52,18 @@ def build_payload(**overrides) -> Dict[str, str]:
     return base
 
 
-def test_create_task_requires_auth(client: TestClient):
+def test_create_task_requires_auth():
+    """Testa se a "dependência de porteiro" está funcionando"""
     response = client.post("/tasks", json=build_payload())
     assert response.status_code == 401
+    assert response.json()["detail"] == "Not authenticated"
 
 
-def test_create_and_list_tasks(client: TestClient):
-    headers = auth_headers()
+def test_create_and_list_tasks(authenticated_headers: Dict[str, str]):
+    """
+    Testa se conseguimos criar e listar tarefas USANDO um token válido
+    """
+    headers = authenticated_headers
 
     create_resp = client.post("/tasks", json=build_payload(), headers=headers)
     assert create_resp.status_code == 201
@@ -60,19 +77,27 @@ def test_create_and_list_tasks(client: TestClient):
     assert data[0]["id"] == created["id"]
 
 
-def test_optimize_schedule_orders_by_priority_then_due_date(client: TestClient):
-    headers = auth_headers()
+def test_optimize_schedule_orders_by_priority_then_due_date(
+    authenticated_headers: Dict[str, str],
+):
+    """
+    Testa o mock da IA, agora protegido por token.
+    (Este teste é o do Wesley, mas com o header de auth)
+    """
+    headers = authenticated_headers
     task_payloads = [
         build_payload(title="Low priority", priority="low"),
         build_payload(
             title="High late",
             priority="high",
-            due_date=(datetime.utcnow() + timedelta(days=5)).isoformat(),
+            # Correção: timezone.utc
+            due_date=(datetime.now(timezone.utc) + timedelta(days=5)).isoformat(),
         ),
         build_payload(
             title="High soon",
             priority="high",
-            due_date=(datetime.utcnow() + timedelta(days=2)).isoformat(),
+            # Correção: timezone.utc
+            due_date=(datetime.now(timezone.utc) + timedelta(days=2)).isoformat(),
         ),
     ]
 

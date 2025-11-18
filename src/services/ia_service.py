@@ -24,7 +24,7 @@ def optimize_schedule(tasks: Iterable[TaskPublic]) -> List[TaskPublic]:
         return PRIORITY_SCORES.get(task.priority, 3), due_date
 
     ordered_tasks = sorted(tasks, key=sort_key)
-    return [task.copy() for task in ordered_tasks]
+    return [task.model_copy() for task in ordered_tasks]
 
 
 __all__ = ["optimize_schedule"]
