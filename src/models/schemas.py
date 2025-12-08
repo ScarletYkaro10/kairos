@@ -38,19 +38,44 @@ class TaskStatus(str, Enum):
     done = "done"
 
 
+class TaskCategory(str, Enum):
+    TRABALHO = "Trabalho"
+    ESTUDO = "Estudo"
+    SAUDE = "Saúde"
+    LAZER = "Lazer"
+    CASA = "Casa"
+    PROJETOS = "Projetos"
+    FINANCAS = "Finanças"
+
+
 class TaskBase(BaseModel):
     title: str = Field(..., min_length=3, max_length=120)
     description: Optional[str] = Field(None, max_length=1024)
+
     due_date: Optional[datetime] = Field(
         None, description="Deadline for completing the task"
     )
+
+    category: TaskCategory = Field(
+        default=TaskCategory.TRABALHO,
+        description="Categoria para a IA analisar a importância",
+    )
+    difficulty: int = Field(
+        default=3,
+        ge=1,
+        le=5,
+        description="Nível de dificuldade de 1 (Fácil) a 5 (Difícil)",
+    )
+    estimated_minutes: int = Field(
+        default=60, ge=1, description="Tempo estimado em minutos"
+    )
+
     priority: TaskPriority = Field(default=TaskPriority.medium)
     status: TaskStatus = Field(default=TaskStatus.pending)
 
     @field_validator("due_date")
     @classmethod
     def validate_due_date(cls, value: Optional[datetime]) -> Optional[datetime]:
-        """Avoid obviously invalid deadlines."""
         if value is not None:
             if value.tzinfo is None:
                 value = value.replace(tzinfo=timezone.utc)
@@ -60,22 +85,16 @@ class TaskBase(BaseModel):
 
 
 class TaskCreate(TaskBase):
-    """Schema used when creating tasks via the API."""
-
     pass
 
 
 class TaskPublic(TaskBase):
-    """Schema returned by the API."""
-
     id: UUID = Field(default_factory=uuid4)
     owner_id: Optional[UUID] = Field(
         default=None, description="User that owns the task"
     )
-
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -86,6 +105,7 @@ __all__ = [
     "TokenData",
     "TaskPriority",
     "TaskStatus",
+    "TaskCategory",
     "TaskCreate",
     "TaskPublic",
 ]
