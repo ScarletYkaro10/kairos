@@ -1,9 +1,11 @@
 from __future__ import annotations
-from datetime import datetime, timedelta, timezone
+
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid4
-from pydantic import BaseModel, Field, EmailStr, field_validator, ConfigDict
+
+from pydantic import BaseModel, Field, EmailStr, validator
 
 
 class UserCreate(BaseModel):
@@ -14,7 +16,9 @@ class UserCreate(BaseModel):
 class UserPublic(BaseModel):
     id: str
     email: EmailStr
-    model_config = ConfigDict(from_attributes=True)
+
+    class Config:
+        from_attributes = True
 
 
 class Token(BaseModel):
@@ -73,8 +77,7 @@ class TaskBase(BaseModel):
     priority: TaskPriority = Field(default=TaskPriority.medium)
     status: TaskStatus = Field(default=TaskStatus.pending)
 
-    @field_validator("due_date")
-    @classmethod
+    @validator("due_date")
     def validate_due_date(cls, value: Optional[datetime]) -> Optional[datetime]:
         if value is not None:
             if value.tzinfo is None:
