@@ -1,9 +1,11 @@
 from __future__ import annotations
-from datetime import datetime, timedelta, timezone
+
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid4
-from pydantic import BaseModel, Field, EmailStr, field_validator, ConfigDict
+
+from pydantic import BaseModel, Field, EmailStr, validator
 
 
 class UserCreate(BaseModel):
@@ -14,7 +16,9 @@ class UserCreate(BaseModel):
 class UserPublic(BaseModel):
     id: str
     email: EmailStr
-    model_config = ConfigDict(from_attributes=True)
+
+    class Config:
+        from_attributes = True
 
 
 class Token(BaseModel):
@@ -47,15 +51,11 @@ class TaskBase(BaseModel):
     priority: TaskPriority = Field(default=TaskPriority.medium)
     status: TaskStatus = Field(default=TaskStatus.pending)
 
-    @field_validator("due_date")
-    @classmethod
+    @validator("due_date")
     def validate_due_date(cls, value: Optional[datetime]) -> Optional[datetime]:
-        """Avoid obviously invalid deadlines."""
-        if value is not None:
-            if value.tzinfo is None:
-                value = value.replace(tzinfo=timezone.utc)
-            if value < datetime.now(timezone.utc) - timedelta(days=1):
-                raise ValueError("due_date cannot be in the distant past")
+        """Avoid obviously invalid deadlines to help keep data clean early on."""
+        if value is not None and value < datetime.utcnow() - timedelta(days=1):
+            raise ValueError("due_date cannot be in the distant past")
         return value
 
 
@@ -66,17 +66,14 @@ class TaskCreate(TaskBase):
 
 
 class TaskPublic(TaskBase):
-    """Schema returned by the API."""
+    """Schema returned by the API and persisted in the task service."""
 
     id: UUID = Field(default_factory=uuid4)
     owner_id: Optional[UUID] = Field(
         default=None, description="User that owns the task"
     )
-
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
-    model_config = ConfigDict(from_attributes=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 __all__ = [
