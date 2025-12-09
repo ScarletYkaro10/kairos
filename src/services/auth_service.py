@@ -6,42 +6,29 @@ from ..core import security
 
 
 def _normalize_email(email: str) -> str:
-    """Normaliza o email para lowercase (emails são case-insensitive)."""
+    """Padroniza o email para minúsculas e remove espaços."""
     return email.lower().strip()
 
 
 def get_user_by_email(db: Session, email: str) -> User | None:
-    """
-    Busca um usuário pelo email no banco de dados.
-    """
+    """Busca um usuário no banco pelo email."""
     normalized_email = _normalize_email(email)
     return db.query(User).filter(User.email == normalized_email).first()
 
 
 def register_user(user: schemas.UserCreate, db: Session) -> schemas.UserPublic:
-    """
-    1. Verifica se o usuário já existe.
-    2. Cria o hash da senha.
-    3. Salva o novo usuário no banco de dados.
-    4. Retorna o usuário público (sem a senha).
-    """
+    """Registra um novo usuário com senha hash."""
     normalized_email = _normalize_email(user.email)
 
-    # Verifica se o usuário já existe
     existing_user = get_user_by_email(db, normalized_email)
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Email já registrado."
         )
 
-    # Cria hash da senha
     hashed_password = security.get_password_hash(user.password)
 
-    # Cria novo usuário
-    db_user = User(
-        email=normalized_email,
-        hashed_password=hashed_password,
-    )
+    db_user = User(email=normalized_email, hashed_password=hashed_password)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -50,22 +37,14 @@ def register_user(user: schemas.UserCreate, db: Session) -> schemas.UserPublic:
 
 
 def login_user(form_data: schemas.UserCreate, db: Session) -> schemas.Token:
-    """
-    1. Busca o usuário no banco de dados pelo email.
-    2. Verifica se a senha está correta.
-    3. Cria e retorna um token JWT.
-
-    Nota: Sempre verifica a senha para evitar timing attacks que possam
-    vazar informações sobre quais emails existem no sistema.
-    """
+    """Autentica o usuário e retorna o token JWT."""
     normalized_email = _normalize_email(form_data.email)
     user_in_db = get_user_by_email(db, normalized_email)
 
-    # Hash dummy para manter tempo de resposta similar (mitiga timing attack)
-    dummy_hash = "$2b$12$dummy.hash.to.prevent.timing.attack.here"
+    dummy_hash = "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWrn3ILAWO.PzH12n.M9/1CV.b6M.u"
+
     hashed_password_to_check = user_in_db.hashed_password if user_in_db else dummy_hash
 
-    # Sempre verifica a senha, mesmo se o usuário não existir
     if not security.verify_password(form_data.password, hashed_password_to_check):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -73,7 +52,6 @@ def login_user(form_data: schemas.UserCreate, db: Session) -> schemas.Token:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Se chegou aqui, a senha está correta, mas verifica se o usuário existe
     if not user_in_db:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -82,5 +60,4 @@ def login_user(form_data: schemas.UserCreate, db: Session) -> schemas.Token:
         )
 
     access_token = security.create_access_token(data={"sub": user_in_db.email})
-
     return schemas.Token(access_token=access_token, token_type="bearer")

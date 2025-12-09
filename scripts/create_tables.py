@@ -5,12 +5,11 @@ Execute: python scripts/create_tables.py
 import sys
 from pathlib import Path
 
-# Adiciona o diretório raiz ao path
 root_dir = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(root_dir))
 
 from src.core.database import init_db
-from src.models import database  # Importa os modelos para registro
+from src.models import database  
 
 if __name__ == "__main__":
     print("Criando tabelas no banco de dados...")

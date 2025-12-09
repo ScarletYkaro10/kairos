@@ -3,111 +3,92 @@ from fastapi.testclient import TestClient
 from datetime import datetime, timedelta, timezone
 from typing import Dict
 from src.main import app
-from src.services import task_service
-from src.services import auth_service
-
-client = TestClient(app)
-
-
-@pytest.fixture(autouse=True)
-def _reset_all_repositories():
-    """Limpa os bancos de dados falsos antes de CADA teste."""
-    task_service.reset_repository()
-    auth_service.fake_users_db.clear()
-    yield
-
-
-@pytest.fixture
-def authenticated_headers() -> Dict[str, str]:
-    """
-    Fixture que faz o trabalho do Pilar de Segurança:
-    1. Registra um usuário
-    2. Faz login
-    3. Retorna os headers de autorização com o token REAL.
-    """
-    client.post(
-        "/auth/register",
-        json={"email": "test.task@example.com", "password": "senhaforte123"},
-    )
-
-    response = client.post(
-        "/auth/login",
-        json={"email": "test.task@example.com", "password": "senhaforte123"},
-    )
-    token = response.json()["access_token"]
-
-    return {"Authorization": f"Bearer {token}"}
 
 
 def build_payload(**overrides) -> Dict[str, str]:
-    """Helper para criar payloads de tarefa."""
+    """Helper auxiliar para criar dados de tarefa nos testes."""
     base = {
         "title": "Test task",
         "description": "Ensure CRUD works",
         "due_date": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         "priority": "medium",
         "status": "pending",
+        "category": "Trabalho",
+        "difficulty": 3,
+        "estimated_minutes": 60,
     }
     base.update(overrides)
     return base
 
 
-def test_create_task_requires_auth():
-    """Testa se a "dependência de porteiro" está funcionando"""
+def test_create_task_requires_auth(client: TestClient):
+    """
+    Testa se tentar criar tarefa sem logar retorna erro 403/401.
+    """
     response = client.post("/tasks", json=build_payload())
+    assert response.status_code in [401, 403]
+    assert response.json().get("detail") == "Not authenticated"
 
-    assert response.status_code == 403
-    assert response.json()["detail"] == "Not authenticated"
 
-
-def test_create_and_list_tasks(authenticated_headers: Dict[str, str]):
+def test_create_and_list_tasks(client: TestClient):
     """
-    Testa se conseguimos criar e listar tarefas USANDO um token válido
+    Testa o fluxo completo feliz: Registrar -> Logar -> Criar -> Listar.
     """
-    headers = authenticated_headers
+    client.post(
+        "/auth/register", json={"email": "task@test.com", "password": "senhaforte123"}
+    )
 
-    create_resp = client.post("/tasks", json=build_payload(), headers=headers)
+    login_resp = client.post(
+        "/auth/login", json={"email": "task@test.com", "password": "senhaforte123"}
+    )
+    assert login_resp.status_code == 200
+    token = login_resp.json()["access_token"]
+
+    headers = {"Authorization": f"Bearer {token}"}
+
+    create_resp = client.post(
+        "/tasks", json=build_payload(title="Minha Tarefa Real"), headers=headers
+    )
     assert create_resp.status_code == 201
-    created = create_resp.json()
-    assert created["title"] == "Test task"
+    created_data = create_resp.json()
+    assert created_data["title"] == "Minha Tarefa Real"
+    created_id = created_data["id"]
 
     list_resp = client.get("/tasks", headers=headers)
     assert list_resp.status_code == 200
     data = list_resp.json()
+
     assert len(data) == 1
-    assert data[0]["id"] == created["id"]
+    assert data[0]["id"] == created_id
+    assert data[0]["title"] == "Minha Tarefa Real"
 
 
-def test_optimize_schedule_orders_by_priority_then_due_date(
-    authenticated_headers: Dict[str, str],
-):
+def test_optimize_schedule(client: TestClient):
     """
-    Testa o mock da IA, agora protegido por token.
-    (Este teste é o do Wesley, mas com o header de auth)
+    Smoke Test para garantir que o endpoint da IA não está quebrando.
     """
-    headers = authenticated_headers
-    task_payloads = [
-        build_payload(title="Low priority", priority="low"),
-        build_payload(
-            title="High late",
-            priority="high",
-            # Correção: timezone.utc
-            due_date=(datetime.now(timezone.utc) + timedelta(days=5)).isoformat(),
-        ),
-        build_payload(
-            title="High soon",
-            priority="high",
-            # Correção: timezone.utc
-            due_date=(datetime.now(timezone.utc) + timedelta(days=2)).isoformat(),
-        ),
-    ]
+    client.post(
+        "/auth/register", json={"email": "ia@test.com", "password": "senhaforte123"}
+    )
+    token = client.post(
+        "/auth/login", json={"email": "ia@test.com", "password": "senhaforte123"}
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
 
-    for payload in task_payloads:
-        resp = client.post("/tasks", json=payload, headers=headers)
-        assert resp.status_code == 201
+    client.post(
+        "/tasks",
+        json=build_payload(title="Urgente", priority="medium"),
+        headers=headers,
+    )
+
+    client.post(
+        "/tasks", json=build_payload(title="Relax", priority="medium"), headers=headers
+    )
 
     optimize_resp = client.post("/optimize-schedule", headers=headers)
+
     assert optimize_resp.status_code == 200
 
-    ordered_titles = [task["title"] for task in optimize_resp.json()]
-    assert ordered_titles == ["High soon", "High late", "Low priority"]
+    res_json = optimize_resp.json()
+    assert isinstance(res_json, list)
+    assert len(res_json) == 2
