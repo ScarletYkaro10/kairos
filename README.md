@@ -1,61 +1,88 @@
-<div align="center">
+# ⏳ Kairós
 
-# Kairos
+> **Seu Assistente de Produtividade Inteligente.**
 
-_"O momento certo" para entregar uma base solida antes de adicionar IA._
+O **Kairós** é um sistema de gestão de tarefas projetado para eliminar a paralisia de decisão. Diferente de *to-do lists* comuns, ele utiliza um modelo de **Inteligência Artificial (Machine Learning)** para analisar suas tarefas e definir automaticamente o que deve ser feito primeiro, baseando-se em critérios de urgência, categoria e dificuldade.
 
-</div>
+---
 
-## Visao Geral
+## 🚀 Status do Projeto
+✅ **MVP 100% Concluído**
+- **Fase 1 (Infraestrutura):** Autenticação, CRUD e CI/CD.
+- **Fase 2 (Inteligência):** Integração com PostgreSQL, Frontend interativo e Modelo de IA (Random Forest) treinado e ativo.
 
-Kairos e o sistema de gestao de tarefas e otimizacao de agenda que estamos construindo em duas etapas:
+---
 
-- **MVP de Qualificacao (50%)** - infraestrutura completa (Seguranca, CRUD, CI/CD) e endpoint `/optimize-schedule` com logica mock.
-- **MVP Final (100%)** - troca do mock por um modelo real (Scikit learn), mantendo a base pronta.
+## 🛠️ Tecnologias e Arquitetura
 
-## Status do MVP 50
+O projeto foi construído seguindo uma arquitetura de microsserviços containerizados, garantindo isolamento e facilidade de deploy.
 
-- Seguranca: autenticacao JWT implementada (`/auth/register`, `/auth/login`) e endpoints de tarefas protegidos via header `Authorization: Bearer <token>`.
-- CRUD de Tarefas: criacao e listagem com validacoes, pronto para trocar para banco real.
-- DevOps: pipeline GitHub Actions (`build` + `test-tasks`) garantindo testes verdes.
-- IA Mock: `src/services/ia_service.py` reordena tarefas por prioridade e prazo, pronta para ser substituida pelo modelo real.
-- Proximo 50: implementar treinamento e carregamento do modelo e substituir a logica mock no endpoint.
+* **Backend:** Python 3.11 + **FastAPI** (Alta performance e tipagem forte).
+* **Frontend:** **Streamlit** (Interface reativa e Data-Driven).
+* **Banco de Dados:** **PostgreSQL 15** (Persistência robusta de dados).
+* **Inteligência Artificial:** **Scikit-Learn** (Algoritmo Random Forest Classifier).
+* **Infraestrutura:** **Docker** & **Docker Compose** (Orquestração dos containers).
+* **Segurança:** Autenticação via **JWT** (JSON Web Tokens) e hash de senhas com **Bcrypt**.
 
-## Estrutura
+---
 
-- `src/models/schemas.py` - Schemas Pydantic de usuarios, tokens e tarefas.
-- `src/services/task_service.py` - CRUD em memoria e ponto unico para evoluir para DB.
-- `src/services/auth_service.py` - Servico de autenticacao com JWT e hash de senhas.
-- `src/services/ia_service.py` - Regra deterministica (mock) para ordenacao.
-- `src/api/task_router.py` - Rotas `/tasks` e `/optimize-schedule`.
-- `src/api/auth_router.py` - Rotas `/auth/register` e `/auth/login`.
-- `src/core/security.py` - Funcoes de hash de senha e JWT.
-- `src/main.py` - Factory do FastAPI e registro das rotas.
+## 🧠 Como a IA Funciona?
 
-## Como Rodar Localmente
+O diferencial do Kairós é o endpoint `/optimize-schedule`. Ele não apenas ordena por data, mas "entende" o contexto da tarefa:
 
-```bash
-python -m venv .venv
-.venv\Scripts\activate  # Windows
-pip install -r requirements.txt
-uvicorn src.main:app --reload
-```
+1.  **Entrada:** A IA recebe o prazo (dias restantes), duração estimada, dificuldade (1-5) e categoria (ex: Saúde, Trabalho, Lazer).
+2.  **Processamento:** Um modelo treinado (`kairos_model.pkl`) analisa esses fatores.
+    * *Exemplo:* Uma tarefa de "Saúde" para daqui a 3 dias tem peso maior que "Lazer" para hoje.
+3.  **Saída:** A tarefa é classificada em **Alta 🔥**, **Média ⚡** ou **Baixa 🌱** prioridade e a lista é reordenada automaticamente.
 
-## Testes e Pipeline
+---
 
-```bash
-pytest tests/test_tasks.py
-```
+## 🐳 Como Rodar (Recomendado via Docker)
 
-O workflow `.github/workflows/main.yml` executa:
+A maneira mais simples de rodar o projeto completo (Front, Back e Banco) é utilizando o Docker.
 
-1. `build`: instala dependencias.
-2. `test-tasks`: roda `pytest tests/test_tasks.py`.
+### Pré-requisitos
+* Docker Desktop instalado e rodando.
 
-## Roadmap pos Qualificacao
+### Passo a Passo
 
-1. Integrar autenticacao completa com os endpoints de tarefas (usar JWT real ao inves de UUID mock).
-2. Treinar e publicar o modelo de IA (Scikit learn) usado pelo `/optimize-schedule`.
-3. Expandir CRUD (projetos, tarefas compartilhadas) e observabilidade.
+1.  **Clone o repositório:**
+    ```bash
+    git clone [https://github.com/seu-usuario/kairos.git](https://github.com/seu-usuario/kairos.git)
+    cd kairos
+    ```
 
-Vamos continuar empilhando o "arroz com feijao" ate a fundacao ficar solida.
+2.  **Suba os containers:**
+    ```bash
+    docker-compose up --build
+    ```
+    *Aguarde alguns instantes. O Docker irá baixar as imagens, configurar o PostgreSQL e treinar o modelo de IA na inicialização.*
+
+3.  **Acesse o Sistema:**
+    * 🖥️ **Frontend (Aplicação):** [http://localhost:8501](http://localhost:8501)
+    * 📄 **Backend (Documentação API):** [http://localhost:8000/docs](http://localhost:8000/docs)
+
+---
+
+## 📂 Estrutura do Projeto
+
+A organização segue os padrões de *Clean Architecture* simplificada para microsserviços.
+
+```text
+kairos/
+├── frontend/               # Aplicação Streamlit
+│   ├── app.py              # Código da interface e conexão com API
+│   └── Dockerfile          # Configuração da imagem do Front
+├── src/                    # Código Fonte do Backend
+│   ├── api/                # Rotas (Endpoints) da API
+│   ├── core/               # Configurações (Banco, Segurança)
+│   ├── ia/                 # Módulo de Inteligência Artificial
+│   │   ├── dataset_generator.py  # Gera dados sintéticos para treino
+│   │   ├── train_model.py        # Treina e salva o modelo .pkl
+│   │   └── tasks_dataset.csv     # Base de conhecimento
+│   ├── models/             # Modelos do Banco (SQLAlchemy) e Schemas (Pydantic)
+│   ├── services/           # Regras de Negócio (Auth, Task, IA)
+│   └── main.py             # Entrypoint da API
+├── tests/                  # Testes Automatizados (Pytest)
+├── docker-compose.yml      # Orquestração dos serviços
+└── requirements.txt        # Dependências do Python
