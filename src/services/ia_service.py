@@ -1,8 +1,11 @@
 import joblib
 import pandas as pd
 import os
+from datetime import datetime, timezone
 from typing import Iterable, List
+from sqlalchemy.orm import Session
 from src.models.schemas import TaskPublic, TaskPriority
+from src.models.database import Task
 
 MODEL_PATH = "src/ia/kairos_model.pkl"
 ENCODER_PATH = "src/ia/category_encoder.pkl"
@@ -12,36 +15,28 @@ _encoder = None
 
 
 def _load_ai_assets():
-    """Carrega o modelo e o encoder se ainda não estiverem na memória."""
     global _model, _encoder
     if _model is None:
         if os.path.exists(MODEL_PATH) and os.path.exists(ENCODER_PATH):
             try:
                 _model = joblib.load(MODEL_PATH)
                 _encoder = joblib.load(ENCODER_PATH)
-                print("✅ IA Kairós: Modelo carregado com sucesso.")
-            except Exception as e:
-                print(f"❌ Erro ao carregar modelo de IA: {e}")
-        else:
-            print(
-                f"⚠️ AVISO: Arquivos do modelo não encontrados em {MODEL_PATH}. Usando lógica de fallback."
-            )
+            except:
+                pass
 
 
 def _predict_priority_score(task: TaskPublic) -> int:
-    """
-    Usa o modelo treinado para prever a prioridade.
-    Retorno: 0 (Baixa), 1 (Média) ou 2 (Alta).
-    """
     _load_ai_assets()
-
     if _model is None or _encoder is None:
         return 1
 
     try:
         days_until = 30
         if task.due_date:
-            now = pd.Timestamp.now(tz=task.due_date.tzinfo)
+            if task.due_date.tzinfo:
+                now = datetime.now(timezone.utc)
+            else:
+                now = datetime.utcnow()
             delta = task.due_date - now
             days_until = max(0, delta.days)
 
@@ -60,40 +55,40 @@ def _predict_priority_score(task: TaskPublic) -> int:
 
         prediction = _model.predict(features)[0]
         return int(prediction)
-
-    except Exception as e:
-        print(f"⚠️ Erro na predição da tarefa '{task.title}': {e}")
+    except:
         return 1
 
 
-def optimize_schedule(tasks: Iterable[TaskPublic]) -> List[TaskPublic]:
-    """
-    Recebe a lista de tarefas, consulta a IA para cada uma e reordena.
-    """
+def optimize_schedule(tasks: Iterable[TaskPublic], db: Session) -> List[TaskPublic]:
     tasks_with_scores = []
 
-    for task in tasks:
-        ai_score = _predict_priority_score(task)
+    for task_schema in tasks:
+        ai_score = _predict_priority_score(task_schema)
 
+        new_priority = TaskPriority.medium
         if ai_score == 2:
-            task.priority = TaskPriority.high
-        elif ai_score == 1:
-            task.priority = TaskPriority.medium
-        else:
-            task.priority = TaskPriority.low
+            new_priority = TaskPriority.high
+        elif ai_score == 0:
+            new_priority = TaskPriority.low
 
-        tasks_with_scores.append((task, ai_score))
+        task_schema.priority = new_priority
+
+        db_task = db.query(Task).filter(Task.id == str(task_schema.id)).first()
+        if db_task:
+            db_task.priority = new_priority
+            db.add(db_task)
+
+        tasks_with_scores.append((task_schema, ai_score))
+
+    db.commit()
 
     ordered = sorted(
         tasks_with_scores,
         key=lambda x: (
             -x[1],
-            x[0].due_date or pd.Timestamp.max.replace(tzinfo=x[0].created_at.tzinfo),
+            x[0].due_date or datetime.max.replace(tzinfo=timezone.utc),
             x[0].estimated_minutes,
         ),
     )
 
     return [t[0].model_copy() for t in ordered]
-
-
-__all__ = ["optimize_schedule"]

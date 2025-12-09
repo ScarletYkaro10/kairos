@@ -5,9 +5,8 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import classification_report, accuracy_score
 
-print("Carregando dataset...")
+print("Carregando dataset modo apresentação...")
 df = pd.read_csv("src/ia/tasks_dataset.csv")
-
 
 le_category = LabelEncoder()
 df["category_encoded"] = le_category.fit_transform(df["category"])
@@ -22,18 +21,16 @@ X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
 
-print("Treinando o modelo...")
+print("Treinando modelo...")
 model = RandomForestClassifier(n_estimators=100, random_state=42)
 model.fit(X_train, y_train)
 
 y_pred = model.predict(X_test)
 accuracy = accuracy_score(y_test, y_pred)
-print(f"\n--- Resultado do Treinamento ---")
-print(f"Acurácia do Modelo: {accuracy:.2f} (Ele acerta {accuracy*100:.0f}% das vezes)")
-print("\nRelatório Detalhado:")
+print(f"\n--- Resultado Final ---")
+print(f"Acurácia: {accuracy:.2f}")
 print(classification_report(y_test, y_pred, target_names=["Baixa", "Média", "Alta"]))
 
-print("Salvando o modelo...")
 joblib.dump(model, "src/ia/kairos_model.pkl")
 joblib.dump(le_category, "src/ia/category_encoder.pkl")
-print("Modelo salvo em 'src/ia/kairos_model.pkl'")
+print("Modelo de apresentação salvo! 🧠")

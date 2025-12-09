@@ -18,9 +18,10 @@ def generate_task_data():
         "Projetos",
         "Finanças",
     ]
-    priorities_list = ["Baixa", "Média", "Alta"]  
 
-    print("Gerando dados com 'Fator Humano' (Ruído)...")
+    priorities_list = ["Alta", "Alta", "Média", "Baixa"]
+
+    print("Gerando dados MODO APRESENTAÇÃO (Mais Vermelho/Alta)...")
 
     for _ in range(NUM_SAMPLES):
         days_until_due = random.randint(0, 30)
@@ -30,18 +31,26 @@ def generate_task_data():
 
         priority = "Baixa"
 
-        if days_until_due <= 5:
+        if days_until_due <= 4:
             priority = "Alta"
-        elif category in ["Saúde", "Finanças"] and difficulty >= 3:
+
+        elif category in ["Saúde", "Finanças"] and days_until_due <= 10:
             priority = "Alta"
-        elif days_until_due <= 15 and category in ["Trabalho", "Estudo", "Projetos"]:
-            priority = "Média"
-        elif category in ["Casa", "Lazer"] and (
-            estimated_minutes < 60 or difficulty <= 2
+
+        elif (
+            category in ["Trabalho", "Projetos", "Estudo"]
+            and difficulty >= 4
+            and days_until_due <= 15
         ):
+            priority = "Alta"
+
+        elif category in ["Trabalho", "Estudo", "Projetos"] and days_until_due <= 20:
             priority = "Média"
 
-        if random.random() < 0.15:
+        elif estimated_minutes <= 60:
+            priority = "Média"
+
+        if random.random() < 0.20:
             priority = random.choice(priorities_list)
 
         data.append(
@@ -62,5 +71,6 @@ if __name__ == "__main__":
     file_path = "src/ia/tasks_dataset.csv"
     df.to_csv(file_path, index=False)
 
-    print(f"\nDataset com ruído gerado: {file_path}")
+    print(f"\nDataset gerado: {file_path}")
+    print("\n--- Distribuição Ideal para Demo (Alta > 250) ---")
     print(df["priority_label"].value_counts())

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from typing import List, Optional
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -43,11 +44,23 @@ def list_tasks_endpoint(
     return task_service.list_tasks(db, owner_id=user_id)
 
 
-@router.post(
-    "/optimize-schedule",
-    response_model=List[TaskPublic],
-    summary="Mock IA endpoint used during the 50% milestone",
+@router.delete(
+    "/tasks/{task_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a task",
 )
+def delete_task_endpoint(
+    task_id: UUID,
+    user_id=Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    success = task_service.delete_task(db, task_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return None
+
+
+@router.post("/optimize-schedule", response_model=List[TaskPublic])
 def optimize_schedule_endpoint(
     request: OptimizeScheduleRequest | None = None,
     user_id=Depends(get_current_user_id),
@@ -58,7 +71,8 @@ def optimize_schedule_endpoint(
         if request and request.tasks
         else task_service.list_tasks(db, owner_id=user_id)
     )
-    return ia_service.optimize_schedule(tasks)
+
+    return ia_service.optimize_schedule(tasks, db)
 
 
 __all__ = ["router"]

@@ -1,11 +1,9 @@
 from __future__ import annotations
-
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid4
-
-from pydantic import BaseModel, Field, EmailStr, validator
+from pydantic import BaseModel, Field, EmailStr, field_validator, ConfigDict
 
 
 class UserCreate(BaseModel):
@@ -14,11 +12,9 @@ class UserCreate(BaseModel):
 
 
 class UserPublic(BaseModel):
-    id: str
+    id: UUID
     email: EmailStr
-
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class Token(BaseModel):
@@ -77,8 +73,10 @@ class TaskBase(BaseModel):
     priority: TaskPriority = Field(default=TaskPriority.medium)
     status: TaskStatus = Field(default=TaskStatus.pending)
 
-    @validator("due_date")
+    @field_validator("due_date")
+    @classmethod
     def validate_due_date(cls, value: Optional[datetime]) -> Optional[datetime]:
+        """Evita datas muito antigas."""
         if value is not None:
             if value.tzinfo is None:
                 value = value.replace(tzinfo=timezone.utc)
@@ -92,12 +90,16 @@ class TaskCreate(TaskBase):
 
 
 class TaskPublic(TaskBase):
+    """Schema returned by the API and persisted in the task service."""
+
     id: UUID = Field(default_factory=uuid4)
     owner_id: Optional[UUID] = Field(
         default=None, description="User that owns the task"
     )
+
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
     model_config = ConfigDict(from_attributes=True)
 
 

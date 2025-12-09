@@ -18,6 +18,9 @@ def _task_db_to_schema(db_task: Task) -> TaskPublic:
         due_date=db_task.due_date,
         priority=db_task.priority,
         status=db_task.status,
+        category=db_task.category,
+        difficulty=db_task.difficulty,
+        estimated_minutes=db_task.estimated_minutes,
         owner_id=UUID(db_task.owner_id) if db_task.owner_id else None,
         created_at=db_task.created_at,
         updated_at=db_task.updated_at,
@@ -34,6 +37,9 @@ def create_task(
         due_date=payload.due_date,
         priority=payload.priority,
         status=payload.status,
+        category=payload.category,
+        difficulty=payload.difficulty,
+        estimated_minutes=payload.estimated_minutes,
         owner_id=owner_id,
     )
     db.add(db_task)
@@ -71,7 +77,6 @@ def update_task(
     if db_task is None:
         return None
 
-    # Atualiza os campos
     if data.title is not None:
         db_task.title = data.title
     if data.description is not None:
@@ -80,6 +85,14 @@ def update_task(
         db_task.due_date = data.due_date
     if data.priority is not None:
         db_task.priority = data.priority
+
+    if data.category is not None:
+        db_task.category = data.category
+    if data.difficulty is not None:
+        db_task.difficulty = data.difficulty
+    if data.estimated_minutes is not None:
+        db_task.estimated_minutes = data.estimated_minutes
+
     if status is not None:
         db_task.status = status
 
